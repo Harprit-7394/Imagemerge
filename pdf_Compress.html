@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Compress Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #status {
+            margin-top: 20px;
+            color: #333;
+        }
+        canvas {
+            display: none; /* Canvas hidden rakho */
+        }
+    </style>
+</head>
+<body>
+    <h1>PDF Compress Tool</h1>
+    <p>Ek PDF select karo aur compress karo!</p>
+
+    <input type="file" id="pdfInput" accept=".pdf" onchange="loadPDF()">
+    <br><br>
+
+    <label>Compression Quality (0.1 - 1.0): </label>
+    <input type="number" id="quality" min="0.1" max="1.0" step="0.1" value="0.5">
+    <br><br>
+
+    <button onclick="compressPDF()">Compress PDF</button>
+    <button onclick="downloadPDF()">Download Compressed PDF</button>
+
+    <div id="status"></div>
+    <canvas id="canvas"></canvas>
+
+    <!-- pdf-lib CDN -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <!-- pdfjs CDN for rendering -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+    <script>
+        let originalPdfBytes = null;
+        let compressedPdfBytes = null;
+
+        // PDF load karne ka function
+        async function loadPDF() {
+            const input = document.getElementById('pdfInput');
+            const file = input.files[0];
+            if (!file) {
+                alert("Pehle ek PDF file select karo!");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                originalPdfBytes = new Uint8Array(e.target.result);
+                document.getElementById('status').innerText = "PDF loaded successfully!";
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // PDF compress karne ka function
+        async function compressPDF() {
+            if (!originalPdfBytes) {
+                alert("Pehle ek PDF select karo!");
+                return;
+            }
+
+            document.getElementById('status').innerText = "Compressing PDF...";
+
+            try {
+                // Original PDF load karo
+                const pdfDoc = await PDFLib.PDFDocument.load(originalPdfBytes);
+                const newPdfDoc = await PDFLib.PDFDocument.create();
+                const pages = pdfDoc.getPages();
+                const quality = parseFloat(document.getElementById('quality').value);
+
+                // pdf.js ke saath pages render karo
+                const pdf = await pdfjsLib.getDocument(originalPdfBytes).promise;
+                const canvas = document.getElementById('canvas');
+                const ctx = canvas.getContext('2d');
+
+                for (let i = 0; i < pages.length; i++) {
+                    const page = await pdf.getPage(i + 1);
+                    const viewport = page.getViewport({ scale: 1.0 });
+
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+
+                    // Page ko canvas pe render karo
+                    await page.render({
+                        canvasContext: ctx,
+                        viewport: viewport
+                    }).promise;
+
+                    // Canvas se compressed image banao
+                    const imgData = canvas.toDataURL('image/jpeg', quality);
+
+                    // Image ko naye PDF mein add karo
+                    const jpgImage = await newPdfDoc.embedJpg(imgData);
+                    const newPage = newPdfDoc.addPage([viewport.width, viewport.height]);
+                    newPage.drawImage(jpgImage, {
+                        x: 0,
+                        y: 0,
+                        width: viewport.width,
+                        height: viewport.height
+                    });
+                }
+
+                // Compressed PDF save karo
+                compressedPdfBytes = await newPdfDoc.save({ useObjectStreams: false });
+                document.getElementById('status').innerText = "PDF compressed successfully!";
+            } catch (error) {
+                document.getElementById('status').innerText = "Error: " + error.message;
+                console.error(error);
+            }
+        }
+
+        // Compressed PDF download karne ka function
+        function downloadPDF() {
+            if (!compressedPdfBytes) {
+                alert("Pehle PDF compress karo!");
+                return;
+            }
+
+            const blob = new Blob([compressedPdfBytes], { type: 'application/pdf' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'compressed_pdf.pdf';
+            link.click();
+            document.getElementById('status').innerText = "PDF downloaded!";
+        }
+    </script>
+</body>
+</html>
