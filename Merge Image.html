@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Merge Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        canvas {
+            border: 1px solid #000;
+            margin-top: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>Image Merge Tool</h1>
+    <p>Do images select karo aur merge karo!</p>
+
+    <input type="file" id="image1" accept="image/*" onchange="loadImage(1)">
+    <input type="file" id="image2" accept="image/*" onchange="loadImage(2)">
+    <br><br>
+
+    <label>Direction: </label>
+    <select id="direction">
+        <option value="horizontal">Horizontal</option>
+        <option value="vertical">Vertical</option>
+    </select>
+    <br><br>
+
+    <button onclick="mergeImages()">Merge Images</button>
+    <button onclick="downloadImage()">Download Merged Image</button>
+
+    <br><br>
+    <canvas id="canvas"></canvas>
+
+    <script>
+        let img1 = null;
+        let img2 = null;
+
+        // Image load karne ka function
+        function loadImage(num) {
+            const input = document.getElementById(`image${num}`);
+            const file = input.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    if (num === 1) img1 = img;
+                    else img2 = img;
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Images merge karne ka function
+        function mergeImages() {
+            if (!img1 || !img2) {
+                alert("Pehle dono images select karo!");
+                return;
+            }
+
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            const direction = document.getElementById('direction').value;
+
+            if (direction === 'horizontal') {
+                canvas.width = img1.width + img2.width;
+                canvas.height = Math.max(img1.height, img2.height);
+                ctx.drawImage(img1, 0, 0);
+                ctx.drawImage(img2, img1.width, 0);
+            } else { // vertical
+                canvas.width = Math.max(img1.width, img2.width);
+                canvas.height = img1.height + img2.height;
+                ctx.drawImage(img1, 0, 0);
+                ctx.drawImage(img2, 0, img1.height);
+            }
+        }
+
+        // Merged image download karne ka function
+        function downloadImage() {
+            const canvas = document.getElementById('canvas');
+            const link = document.createElement('a');
+            link.download = 'merged_image.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+    </script>
+</body>
+</html>
